@@ -123,4 +123,10 @@ with col_visual1:
     draw_proportional_blocks(number, 10, f"Base 10 View: {number}", blue_theme, is_base_10=True)
 
 with col_visual2:
-    draw_proportional_blocks(number, target_base, f"Base {target_base} View: {base_b_string} ({target_base})", orange_theme,
+    draw_proportional_blocks(number, target_base, f"Base {target_base} View: {base_b_string} ({target_base})", orange_theme, is_base_10=False)
+
+st.markdown("---")
+st.info(f"💡 **Mathematical Proof:** \n"
+        f"The configuration on the right evaluates to: " + 
+        " + ".join([f"({d} × {target_base}^{len(base_b_digits)-1-i})" for i, d in enumerate(base_b_digits)]) + 
+        f" = **{number}** in Base 10.")
