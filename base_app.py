@@ -25,7 +25,7 @@ def convert_from_base10(num, base):
 base_b_digits = convert_from_base10(number, target_base)
 base_b_string = "".join(map(str, base_b_digits))
 
-# --- PERFECTLY SCALED DRAWING ENGINE ---
+# --- PERFECTLY SCALED DRAWING ENGINE (WITH ISOLATED ROWS) ---
 def draw_proportional_blocks(total_num, base, title_label, color_theme, is_base_10=False):
     if is_base_10:
         large_val = 100
@@ -46,14 +46,15 @@ def draw_proportional_blocks(total_num, base, title_label, color_theme, is_base_
         large_w, large_h = base, base
         mid_w, mid_h = 1, base
 
+    # Expand canvas height slightly to allow for organized stacking rows
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.set_xlim(0, 20)
-    ax.set_ylim(0, 20)
+    ax.set_xlim(0, 22)
+    ax.set_ylim(0, 26)
     ax.set_aspect('equal')
     ax.axis('off')
     
     current_x = 0.5
-    current_y = 19.5
+    current_y = 25.5 # Start at the top
     
     def draw_internal_grid(x, y, w, h):
         for i in range(1, w):
@@ -61,37 +62,47 @@ def draw_proportional_blocks(total_num, base, title_label, color_theme, is_base_
         for j in range(1, h):
             ax.plot([x, x + w], [y - j, y - j], color='white', linewidth=0.8, zorder=3)
 
-    # 1. Large Blocks
-    for _ in range(num_large):
-        if current_x + large_w > 19.5:
-            current_x = 0.5
-            current_y -= (large_h + 1.5)
-        rect = patches.Rectangle((current_x, current_y - large_h), large_w, large_h, 
-                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
-        ax.add_patch(rect)
-        draw_internal_grid(current_x, current_y, large_w, large_h)
-        current_x += large_w + 1.0
+    # 1. Draw Large Blocks
+    if num_large > 0:
+        for _ in range(num_large):
+            if current_x + large_w > 21.5:
+                current_x = 0.5
+                current_y -= (large_h + 1.0)
+            rect = patches.Rectangle((current_x, current_y - large_h), large_w, large_h, 
+                                     edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+            ax.add_patch(rect)
+            draw_internal_grid(current_x, current_y, large_w, large_h)
+            current_x += large_w + 1.0
+        # Force next group to start on a totally fresh row below the flats
+        current_x = 0.5
+        current_y -= (large_h + 1.5)
 
-    # 2. Mid Blocks
-    for _ in range(num_mid):
-        if current_x + mid_w > 19.5:
-            current_x = 0.5
-            current_y -= (mid_h + 1.5)
-        rect = patches.Rectangle((current_x, current_y - mid_h), mid_w, mid_h, 
-                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
-        ax.add_patch(rect)
-        draw_internal_grid(current_x, current_y, mid_w, mid_h)
-        current_x += mid_w + 0.8
+    # 2. Draw Mid Blocks (Rods)
+    if num_mid > 0:
+        # If previous row didn't exist, we don't need a massive gap, otherwise keep it clean
+        for _ in range(num_mid):
+            if current_x + mid_w > 21.5:
+                current_x = 0.5
+                current_y -= (mid_h + 1.0)
+            rect = patches.Rectangle((current_x, current_y - mid_h), mid_w, mid_h, 
+                                     edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+            ax.add_patch(rect)
+            draw_internal_grid(current_x, current_y, mid_w, mid_h)
+            current_x += mid_w + 0.8
+        # Force single units to start on a totally fresh row safely below the tall rods
+        current_x = 0.5
+        current_y -= (mid_h + 1.5)
 
-    # 3. Single Units
-    for _ in range(num_singles):
-        if current_x + 1.0 > 19.5:
-            current_x = 0.5
-            current_y -= 2.0
-        rect = patches.Rectangle((current_x, current_y - 1.0), 1.0, 1.0, 
-                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
-        ax.add_patch(rect)
-        current_x += 1.5
+    # 3. Draw Single Units
+    if num_singles > 0:
+        for _ in range(num_singles):
+            if current_x + 1.0 > 21.5:
+                current_x = 0.5
+                current_y -= 2.0
+            rect = patches.Rectangle((current_x, current_y - 1.0), 1.0, 1.0, 
+                                     edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+            ax.add_patch(rect)
+            current_x += 1.5
 
     st.markdown(title_label)
     if is_base_10:
@@ -109,7 +120,6 @@ st.markdown("---")
 col_visual1, col_visual2 = st.columns(2)
 
 with col_visual1:
-    # Uses Streamlit markdown to show nice large bold titles with math subscripts
     draw_proportional_blocks(number, 10, f"### **Base 10 View:** ${number}_{{10}}$", blue_theme, is_base_10=True)
 
 with col_visual2:
