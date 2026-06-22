@@ -12,7 +12,7 @@ with col_in1:
 with col_in2:
     target_base = st.number_input("Enter Target Base to Change To:", min_value=2, max_value=10, value=6, step=1)
 
-# --- FUNCTION TO CONVERT AND EXTRACT DIGITS ---
+# --- FUNCTION TO CONVERT BASE ---
 def convert_from_base10(num, base):
     if num == 0:
         return [0]
@@ -20,97 +20,107 @@ def convert_from_base10(num, base):
     while num > 0:
         digits.append(num % base)
         num = num // base
-    return digits[::-1]  # Reverse to get reading order (left-to-right)
+    return digits[::-1]
 
 base_b_digits = convert_from_base10(number, target_base)
 base_b_string = "".join(map(str, base_b_digits))
 
-# --- RENDERING THE VISUAL BLOCKS ---
-def draw_blocks(total_num, base, title_label, is_base_10=False):
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 6)
+# --- NEW PERFECTLY SCALED DRAWING ENGINE ---
+def draw_proportional_blocks(total_num, base, title_label, color_theme, is_base_10=False):
+    # Determine bundling architecture
+    if is_base_10:
+        large_val = 100
+        mid_val = 10
+        
+        num_large = total_num // large_val
+        rem = total_num % large_val
+        num_mid = rem // mid_val
+        num_singles = rem % mid_val
+        
+        large_w, large_h = 10, 10
+        mid_w, mid_h = 1, 10
+    else:
+        large_val = base * base
+        mid_val = base
+        
+        num_large = total_num // large_val
+        rem = total_num % large_val
+        num_mid = rem // mid_val
+        num_singles = rem % mid_val
+        
+        large_w, large_h = base, base
+        mid_w, mid_h = 1, base
+
+    # Set up Matplotlib Canvas 
+    # Use a fixed 20x20 canvas to keep units perfectly proportional across both plots
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.set_xlim(0, 20)
+    ax.set_ylim(0, 20)
+    ax.set_aspect('equal') # FORCES 1:1 PIXEL RATIO (Squares stay squares!)
     ax.axis('off')
     
-    x_offset = 0.5
-    y_offset = 0.5
+    current_x = 0.5
+    current_y = 19.5 # Start drawing from top-left down
     
+    # Helper to draw grid lines inside a block
+    def draw_internal_grid(x, y, w, h):
+        for i in range(1, w):
+            ax.plot([x + i, x + i], [y, y - h], color='white', linewidth=0.8, zorder=3)
+        for j in range(1, h):
+            ax.plot([x, x + w], [y - j, y - j], color='white', linewidth=0.8, zorder=3)
+
+    # 1. Draw Large Blocks (Flats: 10x10 or BxB)
+    for _ in range(num_large):
+        if current_x + large_w > 19.5: # Wrap line if hitting right edge
+            current_x = 0.5
+            current_y -= (large_h + 1.5)
+            
+        rect = patches.Rectangle((current_x, current_y - large_h), large_w, large_h, 
+                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+        ax.add_patch(rect)
+        draw_internal_grid(current_x, current_y, large_w, large_h)
+        current_x += large_w + 1.0
+
+    # 2. Draw Mid Blocks (Rods: 1x10 or 1xB)
+    for _ in range(num_mid):
+        if current_x + mid_w > 19.5:
+            current_x = 0.5
+            current_y -= (mid_h + 1.5)
+            
+        rect = patches.Rectangle((current_x, current_y - mid_h), mid_w, mid_h, 
+                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+        ax.add_patch(rect)
+        draw_internal_grid(current_x, current_y, mid_w, mid_h)
+        current_x += mid_w + 0.8
+
+    # 3. Draw Single Units (1x1 Squares)
+    for _ in range(num_singles):
+        if current_x + 1.0 > 19.5:
+            current_x = 0.5
+            current_y -= 2.0
+            
+        rect = patches.Rectangle((current_x, current_y - 1.0), 1.0, 1.0, 
+                                 edgecolor=color_theme['edge'], facecolor=color_theme['face'], zorder=2)
+        ax.add_patch(rect)
+        current_x += 1.5
+
+    st.subheader(title_label)
     if is_base_10:
-        tens = total_num // 10
-        ones = total_num % 10
-        
-        # Draw Tens (10x1 rectangles)
-        for i in range(tens):
-            if x_offset > 11: # Wrap to next row if too wide
-                x_offset = 0.5
-                y_offset += 2.5
-            rect = patches.Rectangle((x_offset, y_offset), 1.0, 2.0, edgecolor='blue', facecolor='lightblue', alpha=0.7)
-            ax.add_patch(rect)
-            ax.text(x_offset + 0.5, y_offset + 1.0, "10", ha='center', va='center', fontsize=10, weight='bold')
-            x_offset += 1.3
-            
-        # Draw Ones (1x1 squares)
-        x_offset += 0.5
-        for i in range(ones):
-            if x_offset > 11:
-                x_offset = 0.5
-                y_offset += 1.5
-            sq = patches.Rectangle((x_offset, y_offset), 0.6, 0.6, edgecolor='darkblue', facecolor='royalblue', alpha=0.5)
-            ax.add_patch(sq)
-            x_offset += 0.8
-            
-        st.subheader(title_label)
-        st.write(f"Structure: **{tens}** bundles of ten, and **{ones}** single units.")
-        st.pyplot(fig)
-        
+        st.write(f"Bundles: **{num_large}** Hundreds | **{num_mid}** Tens | **{num_singles}** Ones")
     else:
-        # Dynamic calculation based on Target Base
-        # We handle up to 3 positions: Base^2 (Grid), Base^1 (Rectangle), Base^0 (Square)
-        b_squared = base * base
-        
-        num_grids = total_num // b_squared
-        remainder = total_num % b_squared
-        num_rects = remainder // base
-        num_ones = remainder % base
-        
-        # Draw Grids (Base x Base)
-        for i in range(num_grids):
-            rect = patches.Rectangle((x_offset, y_offset), 2.0, 2.0, edgecolor='red', facecolor='salmon', alpha=0.7)
-            ax.add_patch(rect)
-            ax.text(x_offset + 1.0, y_offset + 1.0, f"{base}×{base}\n({b_squared})", ha='center', va='center', fontsize=9, weight='bold')
-            x_offset += 2.4
-            
-        # Draw Rectangles (Base x 1)
-        x_offset += 0.2
-        for i in range(num_rects):
-            rect = patches.Rectangle((x_offset, y_offset), 0.8, 1.8, edgecolor='darkorange', facecolor='orange', alpha=0.6)
-            ax.add_patch(rect)
-            ax.text(x_offset + 0.4, y_offset + 0.9, f"{base}", ha='center', va='center', fontsize=9, weight='bold')
-            x_offset += 1.1
-            
-        # Draw Ones (1x1 squares)
-        x_offset += 0.2
-        for i in range(num_ones):
-            sq = patches.Rectangle((x_offset, y_offset), 0.5, 0.5, edgecolor='brown', facecolor='wheat', alpha=0.8)
-            ax.add_patch(sq)
-            x_offset += 0.7
-            
-        st.subheader(title_label)
-        st.write(f"Structure: **{num_grids}** grids of {b_squared}, **{num_rects}** columns of {base}, and **{num_ones}** single units.")
-        st.pyplot(fig)
+        st.write(f"Bundles: **{num_large}** {large_val}s ({base}×{base}) | **{num_mid}** {mid_val}s (1×{base}) | **{num_singles}** Ones")
+    st.pyplot(fig)
+
+# Color configurations
+blue_theme = {'edge': '#003366', 'face': '#3399FF'}
+orange_theme = {'edge': '#CC5500', 'face': '#FF9933'}
 
 # --- DISPLAY THE RESULT SIDE-BY-SIDE ---
 st.markdown("---")
 col_visual1, col_visual2 = st.columns(2)
 
 with col_visual1:
-    draw_blocks(number, 10, f"Standard Base 10 View: {number}", is_base_10=True)
+    draw_proportional_blocks(number, 10, f"Base 10 View: {number}", blue_theme, is_base_10=True)
 
 with col_visual2:
-    draw_blocks(number, target_base, f"Base {target_base} View: {base_b_string}₂", is_base_10=False)
-
-st.markdown("---")
-st.info(f"💡 **Mathematical Proof:** In Base {target_base}, the digits represent positions from right to left.  \n"
-        f"Therefore: {base_b_string} is calculated as: " + 
-        " + ".join([f"({d} × {target_base}^{len(base_b_digits)-1-i})" for i, d in enumerate(base_b_digits)]) + 
-        f" = **{number}** in Base 10.")
+    draw_proportional_blocks(number, target_base, f"Base {target_base} View: {base_b_string} ({target_base})", orange_theme,
