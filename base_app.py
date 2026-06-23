@@ -174,4 +174,33 @@ def draw_proportional_blocks(total_num, base, title_label, color_theme, is_base_
                 
         # Force a clear drop down to the next row layout level
         if power >= 3:
-            current
+            current_y -= (base * 1.4 + 1.5)
+        elif power == 2 or power == 1:
+            current_y -= (base + 1.5)
+        else:
+            current_y -= 2.5
+        current_x = 0.5
+
+    st.markdown(title_label)
+    st.write("Bundles: " + " | ".join(summary_text))
+    st.pyplot(fig)
+
+# Color configurations
+blue_theme = {'edge': '#003366', 'face': '#3399FF'}
+orange_theme = {'edge': '#CC5500', 'face': '#FF9933'}
+
+# --- DISPLAY THE RESULT SIDE-BY-SIDE ---
+st.markdown("---")
+col_visual1, col_visual2 = st.columns(2)
+
+with col_visual1:
+    draw_proportional_blocks(number, 10, f"### **Base 10 View:** ${number}_{{10}}$", blue_theme, is_base_10=True)
+
+with col_visual2:
+    draw_proportional_blocks(number, target_base, f"### **Base {target_base} View:** ${base_b_string}_{{{target_base}}}$", orange_theme, is_base_10=False)
+
+st.markdown("---")
+st.info(f"💡 **Mathematical Proof:** \n"
+        f"The configuration on the right evaluates to: " + 
+        " + ".join([f"({d} × {target_base}^{len(base_b_digits)-1-i})" for i, d in enumerate(base_b_digits)]) + 
+        f" = **{number}** in Base 10.")
